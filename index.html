@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BI Sales Tracker - Liquid Glass</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Phosphor Icons (Ligeros y profesionales) -->
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <style>
+        /* Tipografía limpia */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #1e3a8a, #7e22ce, #db2777);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+            margin: 0;
+            overflow: hidden; /* Evita scroll en el body, se maneja internamente */
+            color: #1e293b;
+        }
+
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        /* Animated Blobs for Liquid Effect */
+        .blob {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(60px);
+            z-index: -1;
+            opacity: 0.6;
+            animation: float 10s infinite alternate ease-in-out;
+        }
+        .blob-1 { width: 400px; height: 400px; background: #38bdf8; top: -100px; left: -100px; }
+        .blob-2 { width: 350px; height: 350px; background: #fb7185; bottom: -50px; right: -50px; animation-delay: -5s; }
+        
+        @keyframes float {
+            0% { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(30px, -50px) scale(1.1); }
+        }
+
+        /* Estilos Liquid Glass */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.15);
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.35);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            box-shadow: 0 4px 16px 0 rgba(0, 0, 0, 0.05);
+            transition: all 0.3s ease;
+        }
+        
+        .glass-card:hover {
+            background: rgba(255, 255, 255, 0.45);
+            transform: translateY(-2px);
+        }
+
+        .glass-input {
+            background: rgba(255, 255, 255, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            color: #0f172a;
+            transition: all 0.2s;
+        }
+
+        .glass-input:focus {
+            background: rgba(255, 255, 255, 0.7);
+            outline: none;
+            border-color: rgba(255, 255, 255, 0.9);
+            box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.3);
+        }
+
+        .glass-button {
+            background: rgba(255, 255, 255, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            color: #0f172a;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .glass-button:hover {
+            background: rgba(255, 255, 255, 0.6);
+            border-color: rgba(255, 255, 255, 0.8);
+        }
+
+        .glass-button-primary {
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(15, 23, 42, 0.9);
+            color: white;
+            transition: all 0.2s;
+        }
+        
+        .glass-button-primary:hover {
+            background: rgba(15, 23, 42, 0.95);
+        }
+
+        /* Custom Scrollbar para el glass */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.5); border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.8); }
+
+        /* Ocultar vistas no activas */
+        .view-section { display: none; }
+        .view-section.active { display: block; animation: fadeIn 0.3s ease; }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Nav Tab Activo */
+        .nav-item.active {
+            background: rgba(255, 255, 255, 0.6);
+            border-color: rgba(255, 255, 255, 0.8);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+
+        /* Toast */
+        #toast {
+            position: fixed; top: 20px; right: 20px; z-index: 1000;
+            transform: translateX(150%); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        #toast.show { transform: translateX(0); }
+    </style>
+</head>
+<body class="h-screen w-screen flex items-center justify-center p-2 sm:p-6">
+
+    <!-- Blobs de fondo -->
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+
+    <!-- Contenedor Principal (App Window) -->
+    <div class="glass-panel w-full max-w-6xl h-full flex flex-col rounded-3xl overflow-hidden relative">
+        
+        <!-- Header / Navegación (Se oculta en Login) -->
+        <header id="app-header" class="hidden border-b border-white/30 p-4 flex flex-col sm:flex-row justify-between items-center gap-4 bg-white/10 z-10">
+            <div class="flex items-center gap-2">
+                <i class="ph ph-chart-polar text-2xl text-slate-800"></i>
+                <h1 class="text-xl font-bold text-slate-800 tracking-tight">Ventas<span class="text-indigo-900">BI</span></h1>
+            </div>
+            
+            <nav id="main-nav" class="flex gap-2 overflow-x-auto w-full sm:w-auto pb-2 sm:pb-0">
+                <!-- Los tabs se inyectan vía JS según el rol -->
+            </nav>
+
+            <div class="flex items-center gap-3">
+                <div class="text-sm font-medium text-slate-700 bg-white/30 px-3 py-1.5 rounded-full border border-white/40 flex items-center gap-2">
+                    <i class="ph ph-user"></i> <span id="current-user-name">Usuario</span>
+                </div>
+                <button onclick="logout()" class="glass-button p-2 rounded-full text-slate-700 hover:text-red-600" title="Cerrar Sesión">
+                    <i class="ph ph-sign-out text-lg"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- Área de Contenido -->
+        <main class="flex-1 overflow-y-auto p-4 sm:p-6 z-10 relative">
+            
+            <!-- VISTA: LOGIN -->
+            <section id="view-login" class="view-section active h-full flex items-center justify-center">
+                <div class="glass-card w-full max-w-md p-8 rounded-2xl">
+                    <div class="text-center mb-8">
+                        <i class="ph ph-chart-polar text-5xl text-indigo-900 mb-2"></i>
+                        <h2 class="text-2xl font-bold text-slate-800">Bienvenido</h2>
+                        <p class="text-sm text-slate-600 mt-1">Selecciona tu usuario para ingresar</p>
+                    </div>
+
+                    <div class="space-y-3">
+                        <button onclick="login('admin@admin.com')" class="w-full glass-button flex items-center justify-between p-3 rounded-xl">
+                            <div class="flex items-center gap-3">
+                                <div class="bg-indigo-100/50 p-2 rounded-lg text-indigo-700"><i class="ph ph-shield-star text-xl"></i></div>
+                                <div class="text-left">
+                                    <p class="font-semibold text-sm">Administrador</p>
+                                    <p class="text-xs text-slate-500">admin@admin.com</p>
+                                </div>
+                            </div>
+                            <i class="ph ph-caret-right text-slate-400"></i>
+                        </button>
+
+                        <button onclick="login('jorge@jorge.com')" class="w-full glass-button flex items-center justify-between p-3 rounded-xl">
+                            <div class="flex items-center gap-3">
+                                <div class="bg-blue-100/50 p-2 rounded-lg text-blue-700"><i class="ph ph-storefront text-xl"></i></div>
+                                <div class="text-left">
+                                    <p class="font-semibold text-sm">Jorge (Vendedor)</p>
+                                    <p class="text-xs text-slate-500">jorge@jorge.com</p>
+                                </div>
+                            </div>
+                            <i class="ph ph-caret-right text-slate-400"></i>
+                        </button>
+
+                        <button onclick="login('maria@maria.com')" class="w-full glass-button flex items-center justify-between p-3 rounded-xl">
+                            <div class="flex items-center gap-3">
+                                <div class="bg-pink-100/50 p-2 rounded-lg text-pink-700"><i class="ph ph-storefront text-xl"></i></div>
+                                <div class="text-left">
+                                    <p class="font-semibold text-sm">Maria (Vendedora)</p>
+                                    <p class="text-xs text-slate-500">maria@maria.com</p>
+                                </div>
+                            </div>
+                            <i class="ph ph-caret-right text-slate-400"></i>
+                        </button>
+
+                        <button onclick="login('pepe@pepe.com')" class="w-full glass-button flex items-center justify-between p-3 rounded-xl">
+                            <div class="flex items-center gap-3">
+                                <div class="bg-orange-100/50 p-2 rounded-lg text-orange-700"><i class="ph ph-storefront text-xl"></i></div>
+                                <div class="text-left">
+                                    <p class="font-semibold text-sm">Pepe (Vendedor)</p>
+                                    <p class="text-xs text-slate-500">pepe@pepe.com</p>
+                                </div>
+                            </div>
+                            <i class="ph ph-caret-right text-slate-400"></i>
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VISTA: DASHBOARD -->
+            <section id="view-dashboard" class="view-section">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                    <div class="glass-card p-5 rounded-2xl flex items-center gap-4">
+                        <div class="bg-emerald-100/50 p-3 rounded-xl text-emerald-700"><i class="ph ph-money text-2xl"></i></div>
+                        <div>
+                            <p class="text-sm text-slate-600 font-medium">Ventas de Hoy</p>
+                            <h3 class="text-2xl font-bold text-slate-800" id="dash-today-sales">$0</h3>
+                        </div>
+                    </div>
+                    <div class="glass-card p-5 rounded-2xl flex items-center gap-4">
+                        <div class="bg-blue-100/50 p-3 rounded-xl text-blue-700"><i class="ph ph-shopping-bag text-2xl"></i></div>
+                        <div>
+                            <p class="text-sm text-slate-600 font-medium">Artículos Vendidos</p>
+                            <h3 class="text-2xl font-bold text-slate-800" id="dash-items-sold">0</h3>
+                        </div>
+                    </div>
+                    <div class="glass-card p-5 rounded-2xl flex items-center gap-4">
+                        <div class="bg-purple-100/50 p-3 rounded-xl text-purple-700"><i class="ph ph-receipt text-2xl"></i></div>
+                        <div>
+                            <p class="text-sm text-slate-600 font-medium">Operaciones</p>
+                            <h3 class="text-2xl font-bold text-slate-800" id="dash-tx-count">0</h3>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-card p-6 rounded-2xl">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-bold text-slate-800">Últimas Transacciones</h3>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm">
+                            <thead>
+                                <tr class="text-slate-500 border-b border-white/30">
+                                    <th class="pb-3 font-medium">Fecha/Hora</th>
+                                    <th class="pb-3 font-medium admin-only">Vendedor</th>
+                                    <th class="pb-3 font-medium">Artículos</th>
+                                    <th class="pb-3 font-medium text-right">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody id="transactions-list" class="text-slate-700">
+                                <!-- Filas inyectadas por JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VISTA: NUEVA VENTA (POS) -->
+            <section id="view-pos" class="view-section">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Selector de Productos -->
+                    <div class="lg:col-span-2 space-y-4">
+                        <div class="glass-card p-4 rounded-2xl flex gap-4">
+                            <input type="text" id="pos-search" placeholder="Buscar producto..." class="glass-input w-full px-4 py-2 rounded-xl" onkeyup="filterProducts()">
+                        </div>
+                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-4" id="pos-products">
+                            <!-- Productos inyectados por JS -->
+                        </div>
+                    </div>
+
+                    <!-- Carrito / Ticket -->
+                    <div class="glass-card p-6 rounded-2xl h-fit sticky top-0 flex flex-col max-h-[70vh]">
+                        <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2"><i class="ph ph-receipt"></i> Venta Actual</h3>
+                        
+                        <div class="flex-1 overflow-y-auto mb-4 min-h-[200px]" id="cart-items">
+                            <p class="text-slate-500 text-sm text-center mt-10">Selecciona productos para comenzar</p>
+                        </div>
+                        
+                        <div class="border-t border-white/30 pt-4 space-y-2 mb-6">
+                            <div class="flex justify-between text-sm text-slate-600">
+                                <span>Subtotal</span>
+                                <span id="cart-subtotal">$0</span>
+                            </div>
+                            <div class="flex justify-between text-xl font-bold text-slate-800">
+                                <span>Total</span>
+                                <span id="cart-total">$0</span>
+                            </div>
+                        </div>
+
+                        <button onclick="checkout()" class="glass-button-primary w-full py-3 rounded-xl flex justify-center items-center gap-2">
+                            <i class="ph ph-check-circle text-xl"></i> Confirmar Venta
+                        </button>
+                        <button onclick="clearCart()" class="w-full text-center text-sm text-slate-500 mt-3 hover:text-slate-800 transition-colors">
+                            Cancelar Venta
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VISTA: INVENTARIO (Admin) -->
+            <section id="view-inventory" class="view-section">
+                <div class="glass-card p-6 rounded-2xl">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-lg font-bold text-slate-800">Control de Stock</h3>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left text-sm">
+                            <thead>
+                                <tr class="text-slate-500 border-b border-white/30">
+                                    <th class="pb-3 font-medium">ID</th>
+                                    <th class="pb-3 font-medium">Producto</th>
+                                    <th class="pb-3 font-medium">Precio Unit.</th>
+                                    <th class="pb-3 font-medium text-right">Stock Actual</th>
+                                    <th class="pb-3 font-medium text-center">Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody id="inventory-list" class="text-slate-700">
+                                <!-- Filas inyectadas por JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- VISTA: REPORTES Y RRHH (Admin) -->
+            <section id="view-reports" class="view-section">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-bold text-slate-800">Análisis y Recursos Humanos</h2>
+                    <button onclick="exportCSV()" class="glass-button-primary px-4 py-2 rounded-xl flex items-center gap-2 text-sm">
+                        <i class="ph ph-download-simple"></i> Exportar CSV
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Reporte de Comisiones -->
+                    <div class="glass-card p-6 rounded-2xl">
+                        <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                            <i class="ph ph-users-three"></i> Desempeño y Comisiones
+                        </h3>
+                        <p class="text-xs text-slate-500 mb-4">Cálculo basado en 5% de comisión sobre ventas brutas.</p>
+                        <div class="space-y-4" id="hr-reports">
+                            <!-- Inyectado por JS -->
+                        </div>
+                    </div>
+
+                    <!-- Resumen de Cierre Diario -->
+                    <div class="glass-card p-6 rounded-2xl">
+                        <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2">
+                            <i class="ph ph-chart-bar"></i> Resumen por Producto
+                        </h3>
+                        <div class="space-y-3" id="product-reports">
+                            <!-- Inyectado por JS -->
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="glass-card border border-emerald-400 bg-emerald-50/80 px-4 py-3 rounded-xl shadow-lg flex items-center gap-3">
+        <i class="ph ph-check-circle text-emerald-600 text-xl"></i>
+        <span id="toast-msg" class="text-sm font-medium text-slate-800">Acción exitosa</span>
+    </div>
+
+    <script>
+        // --- 1. DEFINICIÓN DE DATOS Y ESTADO ---
+        const users = [
+            { email: 'admin@admin.com', name: 'Administrador', role: 'admin' },
+            { email: 'jorge@jorge.com', name: 'Jorge', role: 'vendor' },
+            { email: 'maria@maria.com', name: 'Maria', role: 'vendor' },
+            { email: 'pepe@pepe.com', name: 'Pepe', role: 'vendor' },
+        ];
+
+        // Datos Iniciales por defecto
+        const defaultInventory = [
+            { id: 'P001', name: 'Remera Básica Algodón', price: 15000, stock: 50 },
+            { id: 'P002', name: 'Pantalón Jean Clásico', price: 35000, stock: 30 },
+            { id: 'P003', name: 'Zapatillas Urbanas', price: 45000, stock: 20 },
+            { id: 'P004', name: 'Gorra Deportiva', price: 8500, stock: 100 },
+            { id: 'P005', name: 'Campera de Abrigo', price: 65000, stock: 15 },
+            { id: 'P006', name: 'Medias (Pack x3)', price: 5000, stock: 80 }
+        ];
+
+        // Estado Global
+        let state = {
+            currentUser: null,
+            inventory: [],
+            sales: [],
+            cart: []
+        };
+
+        // --- 2. PERSISTENCIA (LocalStorage) ---
+        function initData() {
+            const savedInv = localStorage.getItem('bi_inventory');
+            const savedSales = localStorage.getItem('bi_sales');
+            
+            state.inventory = savedInv ? JSON.parse(savedInv) : [...defaultInventory];
+            state.sales = savedSales ? JSON.parse(savedSales) : [];
+        }
+
+        function saveData() {
+            localStorage.setItem('bi_inventory', JSON.stringify(state.inventory));
+            localStorage.setItem('bi_sales', JSON.stringify(state.sales));
+        }
+
+        // --- 3. UTILIDADES ---
+        const formatMoney = (amount) => new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 }).format(amount);
+        const formatDate = (isoString) => {
+            const d = new Date(isoString);
+            return d.toLocaleDateString('es-AR') + ' ' + d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+        };
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-msg').innerText = message;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        // --- 4. NAVEGACIÓN Y AUTENTICACIÓN ---
+        function login(email) {
+            const user = users.find(u => u.email === email);
+            if (user) {
+                state.currentUser = user;
+                document.getElementById('current-user-name').innerText = user.name;
+                document.getElementById('app-header').classList.remove('hidden');
+                
+                // Mostrar/ocultar columnas exclusivas de admin
+                const adminCols = document.querySelectorAll('.admin-only');
+                adminCols.forEach(el => el.style.display = user.role === 'admin' ? 'table-cell' : 'none');
+
+                renderNav();
+                switchTab(user.role === 'vendor' ? 'pos' : 'dashboard');
+            }
+        }
+
+        function logout() {
+            state.currentUser = null;
+            document.getElementById('app-header').classList.add('hidden');
+            switchTab('login');
+        }
+
+        function renderNav() {
+            const nav = document.getElementById('main-nav');
+            let tabs = [];
+            
+            if (state.currentUser.role === 'vendor') {
+                tabs = [
+                    { id: 'pos', name: 'Nueva Venta', icon: 'ph-shopping-cart' },
+                    { id: 'dashboard', name: 'Mis Ventas', icon: 'ph-squares-four' }
+                ];
+            } else {
+                tabs = [
+                    { id: 'dashboard', name: 'Panel General', icon: 'ph-squares-four' },
+                    { id: 'inventory', name: 'Stock', icon: 'ph-package' },
+                    { id: 'reports', name: 'Reportes & RRHH', icon: 'ph-chart-line-up' }
+                ];
+            }
+
+            nav.innerHTML = tabs.map(tab => `
+                <button onclick="switchTab('${tab.id}')" id="tab-btn-${tab.id}" class="nav-item glass-button px-4 py-2 rounded-xl text-sm flex items-center gap-2 whitespace-nowrap border-transparent">
+                    <i class="ph ${tab.icon} text-lg"></i> ${tab.name}
+                </button>
+            `).join('');
+        }
+
+        function switchTab(tabId) {
+            // Ocultar todas las vistas
+            document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+            // Mostrar la seleccionada
+            document.getElementById(`view-${tabId}`).classList.add('active');
+            
+            // Actualizar botones nav (si existen)
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active', 'border-white/80', 'bg-white/60'));
+            const activeBtn = document.getElementById(`tab-btn-${tabId}`);
+            if(activeBtn) activeBtn.classList.add('active', 'border-white/80', 'bg-white/60');
+
+            // Renderizar datos de la vista
+            if (tabId === 'dashboard') renderDashboard();
+            if (tabId === 'pos') { renderPOSProducts(); updateCartUI(); }
+            if (tabId === 'inventory') renderInventory();
+            if (tabId === 'reports') renderReports();
+        }
+
+        // --- 5. LÓGICA DE VISTAS ---
+
+        // A. PUNTO DE VENTA (POS)
+        function renderPOSProducts(filter = '') {
+            const container = document.getElementById('pos-products');
+            const filtered = state.inventory.filter(p => p.name.toLowerCase().includes(filter.toLowerCase()));
+            
+            container.innerHTML = filtered.map(p => {
+                const isOutOfStock = p.stock <= 0;
+                return `
+                <div class="glass-card p-4 rounded-2xl flex flex-col justify-between ${isOutOfStock ? 'opacity-50' : 'cursor-pointer hover:border-indigo-300'}" 
+                     ${!isOutOfStock ? `onclick="addToCart('${p.id}')"` : ''}>
+                    <div>
+                        <div class="text-xs font-semibold text-indigo-800 bg-indigo-100/50 w-fit px-2 py-0.5 rounded mb-2">Stock: ${p.stock}</div>
+                        <h4 class="font-semibold text-slate-800 leading-tight mb-1">${p.name}</h4>
+                    </div>
+                    <div class="mt-3 flex justify-between items-end">
+                        <span class="font-bold text-slate-900">${formatMoney(p.price)}</span>
+                        ${!isOutOfStock ? `<div class="bg-white/50 p-1.5 rounded-lg text-slate-600"><i class="ph ph-plus"></i></div>` : `<span class="text-xs text-red-500 font-bold">Agotado</span>`}
+                    </div>
+                </div>
+            `}).join('');
+        }
+
+        function filterProducts() {
+            const term = document.getElementById('pos-search').value;
+            renderPOSProducts(term);
+        }
+
+        function addToCart(productId) {
+            const product = state.inventory.find(p => p.id === productId);
+            if (!product || product.stock <= 0) return;
+
+            const existing = state.cart.find(item => item.product.id === productId);
+            if (existing) {
+                if(existing.qty < product.stock) { existing.qty++; }
+                else { showToast('Stock máximo alcanzado'); return; }
+            } else {
+                state.cart.push({ product, qty: 1 });
+            }
+            updateCartUI();
+        }
+
+        function removeFromCart(productId) {
+            state.cart = state.cart.filter(item => item.product.id !== productId);
+            updateCartUI();
+        }
+
+        function updateCartUI() {
+            const container = document.getElementById('cart-items');
+            const subtotalEl = document.getElementById('cart-subtotal');
+            const totalEl = document.getElementById('cart-total');
+
+            if (state.cart.length === 0) {
+                container.innerHTML = '<p class="text-slate-500 text-sm text-center mt-10">Selecciona productos para comenzar</p>';
+                subtotalEl.innerText = '$0';
+                totalEl.innerText = '$0';
+                return;
+            }
+
+            let total = 0;
+            container.innerHTML = state.cart.map(item => {
+                const itemTotal = item.product.price * item.qty;
+                total += itemTotal;
+                return `
+                <div class="flex justify-between items-center bg-white/40 p-3 rounded-xl mb-2 border border-white/40">
+                    <div class="flex-1">
+                        <p class="text-sm font-semibold text-slate-800">${item.product.name}</p>
+                        <p class="text-xs text-slate-500">${formatMoney(item.product.price)} x ${item.qty}</p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="font-bold text-sm text-slate-800">${formatMoney(itemTotal)}</span>
+                        <button onclick="removeFromCart('${item.product.id}')" class="text-red-500 hover:bg-red-100/50 p-1 rounded-md transition-colors">
+                            <i class="ph ph-trash"></i>
+                        </button>
+                    </div>
+                </div>
+            `}).join('');
+
+            subtotalEl.innerText = formatMoney(total);
+            totalEl.innerText = formatMoney(total); // Asumiendo sin impuestos extra por ahora
+        }
+
+        function clearCart() {
+            state.cart = [];
+            updateCartUI();
+        }
+
+        function checkout() {
+            if (state.cart.length === 0) return;
+
+            // Calcular total y crear registro
+            let totalSale = 0;
+            const saleItems = state.cart.map(item => {
+                totalSale += item.product.price * item.qty;
+                // Descontar stock
+                const invItem = state.inventory.find(p => p.id === item.product.id);
+                if(invItem) invItem.stock -= item.qty;
+                
+                return {
+                    id: item.product.id,
+                    name: item.product.name,
+                    price: item.product.price,
+                    qty: item.qty
+                };
+            });
+
+            const newSale = {
+                id: 'TRX-' + Math.random().toString(36).substr(2, 6).toUpperCase(),
+                date: new Date().toISOString(),
+                vendorEmail: state.currentUser.email,
+                vendorName: state.currentUser.name,
+                items: saleItems,
+                total: totalSale
+            };
+
+            state.sales.unshift(newSale); // Agregar al inicio
+            saveData();
+            clearCart();
+            renderPOSProducts(); // Actualizar stock visual
+            showToast('Venta registrada con éxito');
+        }
+
+        // B. DASHBOARD
+        function renderDashboard() {
+            const isAdmin = state.currentUser.role === 'admin';
+            
+            // Filtrar ventas: admin ve todas, vendedor ve las suyas de hoy
+            const today = new Date().toDateString();
+            const relevantSales = state.sales.filter(s => {
+                const isToday = new Date(s.date).toDateString() === today;
+                return isAdmin ? isToday : (isToday && s.vendorEmail === state.currentUser.email);
+            });
+
+            // Calcular KPIs
+            const totalRevenue = relevantSales.reduce((acc, curr) => acc + curr.total, 0);
+            const totalItems = relevantSales.reduce((acc, curr) => acc + curr.items.reduce((sum, item) => sum + item.qty, 0), 0);
+
+            document.getElementById('dash-today-sales').innerText = formatMoney(totalRevenue);
+            document.getElementById('dash-items-sold').innerText = totalItems;
+            document.getElementById('dash-tx-count').innerText = relevantSales.length;
+
+            // Lista de transacciones (Mostrar todas para admin, o todas del vendedor)
+            const displaySales = isAdmin ? state.sales : state.sales.filter(s => s.vendorEmail === state.currentUser.email);
+            
+            const tbody = document.getElementById('transactions-list');
+            if(displaySales.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" class="py-4 text-center text-slate-500">No hay transacciones registradas.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = displaySales.slice(0, 15).map(s => `
+                <tr class="border-b border-white/20 hover:bg-white/10 transition-colors">
+                    <td class="py-3 text-xs"><div class="font-medium">${s.id}</div><div class="text-slate-500">${formatDate(s.date)}</div></td>
+                    <td class="py-3 text-sm admin-only" style="display: ${isAdmin ? 'table-cell' : 'none'}">${s.vendorName}</td>
+                    <td class="py-3 text-sm">${s.items.reduce((acc, i) => acc + i.qty, 0)} unid.</td>
+                    <td class="py-3 text-sm font-bold text-right">${formatMoney(s.total)}</td>
+                </tr>
+            `).join('');
+        }
+
+        // C. INVENTARIO
+        function renderInventory() {
+            const tbody = document.getElementById('inventory-list');
+            tbody.innerHTML = state.inventory.map(p => {
+                let status = '<span class="px-2 py-1 bg-emerald-100 text-emerald-800 rounded text-xs font-semibold">Óptimo</span>';
+                if(p.stock <= 5 && p.stock > 0) status = '<span class="px-2 py-1 bg-orange-100 text-orange-800 rounded text-xs font-semibold">Bajo</span>';
+                if(p.stock === 0) status = '<span class="px-2 py-1 bg-red-100 text-red-800 rounded text-xs font-semibold">Agotado</span>';
+
+                return `
+                <tr class="border-b border-white/20 hover:bg-white/10 transition-colors">
+                    <td class="py-3 text-xs text-slate-500">${p.id}</td>
+                    <td class="py-3 text-sm font-medium">${p.name}</td>
+                    <td class="py-3 text-sm">${formatMoney(p.price)}</td>
+                    <td class="py-3 text-sm font-bold text-right">${p.stock}</td>
+                    <td class="py-3 text-center">${status}</td>
+                </tr>
+            `}).join('');
+        }
+
+        // D. REPORTES (BI / RRHH)
+        function renderReports() {
+            // 1. Reporte RRHH (Comisiones)
+            const hrContainer = document.getElementById('hr-reports');
+            const vendorStats = {};
+            
+            // Solo considerar vendedores
+            users.filter(u => u.role === 'vendor').forEach(v => {
+                vendorStats[v.email] = { name: v.name, totalVendido: 0, txCount: 0 };
+            });
+
+            state.sales.forEach(s => {
+                if(vendorStats[s.vendorEmail]) {
+                    vendorStats[s.vendorEmail].totalVendido += s.total;
+                    vendorStats[s.vendorEmail].txCount++;
+                }
+            });
+
+            hrContainer.innerHTML = Object.values(vendorStats).map(v => {
+                const comision = v.totalVendido * 0.05; // 5% de comisión
+                return `
+                <div class="flex justify-between items-center bg-white/40 p-3 rounded-xl border border-white/40">
+                    <div class="flex items-center gap-3">
+                        <div class="bg-indigo-100 text-indigo-700 w-10 h-10 rounded-full flex items-center justify-center font-bold">
+                            ${v.name.charAt(0)}
+                        </div>
+                        <div>
+                            <p class="font-bold text-slate-800 text-sm">${v.name}</p>
+                            <p class="text-xs text-slate-500">${v.txCount} ventas registradas</p>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-xs text-slate-500">Comisión (5%)</p>
+                        <p class="font-bold text-emerald-600">${formatMoney(comision)}</p>
+                    </div>
+                </div>
+            `}).join('');
+
+            // 2. Reporte de Productos
+            const prodContainer = document.getElementById('product-reports');
+            const prodStats = {};
+            
+            state.sales.forEach(s => {
+                s.items.forEach(item => {
+                    if(!prodStats[item.id]) prodStats[item.id] = { name: item.name, qty: 0, revenue: 0 };
+                    prodStats[item.id].qty += item.qty;
+                    prodStats[item.id].revenue += (item.price * item.qty);
+                });
+            });
+
+            const topProducts = Object.values(prodStats).sort((a,b) => b.qty - a.qty).slice(0, 5);
+            
+            if(topProducts.length === 0) {
+                prodContainer.innerHTML = '<p class="text-sm text-slate-500">No hay datos de ventas aún.</p>';
+            } else {
+                prodContainer.innerHTML = topProducts.map(p => `
+                    <div class="flex justify-between items-center bg-white/30 p-2 rounded-lg text-sm">
+                        <span class="font-medium text-slate-700 truncate w-1/2">${p.name}</span>
+                        <span class="text-slate-500 w-1/4 text-center">${p.qty} u.</span>
+                        <span class="font-bold text-slate-800 w-1/4 text-right">${formatMoney(p.revenue)}</span>
+                    </div>
+                `).join('');
+            }
+        }
+
+        // --- 6. EXPORTACIÓN DE DATOS (Para el analista BI) ---
+        function exportCSV() {
+            if (state.sales.length === 0) {
+                showToast("No hay datos para exportar");
+                return;
+            }
+
+            // Cabeceras: ID_Transaccion, Fecha, Vendedor, ID_Producto, Nombre_Producto, Cantidad, Precio_Unitario, Total_Fila
+            let csvContent = "data:text/csv;charset=utf-8,ID_Transaccion,Fecha,Vendedor,ID_Producto,Nombre_Producto,Cantidad,Precio_Unitario,Total_Fila\n";
+            
+            state.sales.forEach(s => {
+                s.items.forEach(item => {
+                    const row = [
+                        s.id,
+                        s.date,
+                        s.vendorName,
+                        item.id,
+                        `"${item.name}"`, // Escapar comas en el nombre
+                        item.qty,
+                        item.price,
+                        item.qty * item.price
+                    ].join(",");
+                    csvContent += row + "\n";
+                });
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `Data_Ventas_BI_${new Date().toISOString().split('T')[0]}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+            showToast("CSV descargado exitosamente");
+        }
+
+        // --- INICIALIZACIÓN ---
+        window.onload = () => {
+            initData();
+            // La vista de login está activa por defecto en el HTML
+        };
+
+    </script>
+</body>
+</html>
