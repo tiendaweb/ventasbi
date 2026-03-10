@@ -169,18 +169,21 @@
         <main class="flex-1 overflow-y-auto p-4 sm:p-6 z-10 relative">
             
             <!-- VISTA: LOGIN -->
-            <section id="view-login" class="view-section active h-full flex items-center justify-center">
-                <div class="glass-card w-full max-w-md p-8 rounded-2xl">
+            <section id="view-login" class="view-section active min-h-full w-full flex items-center justify-center">
+                <div class="glass-card w-full max-w-md p-8 rounded-2xl mx-auto">
                     <div class="text-center mb-8">
                         <i class="ph ph-chart-polar text-5xl text-indigo-900 mb-2"></i>
                         <h2 class="text-2xl font-bold text-slate-800">Bienvenido</h2>
-                        <p class="text-sm text-slate-600 mt-1">Ingresa usuario y contraseña para habilitar “Iniciar como”.</p>
+                        <p class="text-sm text-slate-600 mt-1">Ingresa usuario y contraseña para iniciar sesión o usar “Iniciar como”.</p>
                     </div>
 
                     <div class="space-y-3 mb-5">
-                        <input id="login-user" type="text" placeholder="Usuario (ej. admin@admin.com)" class="glass-input w-full px-4 py-2.5 rounded-xl">
-                        <input id="login-password" type="password" placeholder="Contraseña" class="glass-input w-full px-4 py-2.5 rounded-xl">
-                        <p class="text-xs text-slate-500">La contraseña no se valida, solo se requiere que el usuario coincida con el botón elegido.</p>
+                        <input id="login-user" type="text" placeholder="Usuario (ej. admin@admin.com)" class="glass-input w-full px-4 py-2.5 rounded-xl" onkeydown="handleLoginKey(event)">
+                        <input id="login-password" type="password" placeholder="Contraseña" class="glass-input w-full px-4 py-2.5 rounded-xl" onkeydown="handleLoginKey(event)">
+                        <button onclick="loginWithButton()" class="glass-button-primary w-full py-3 rounded-xl flex justify-center items-center gap-2">
+                            <i class="ph ph-sign-in text-lg"></i> Iniciar sesión
+                        </button>
+                        <p class="text-xs text-slate-500">La contraseña no se valida, pero debe completarse para continuar.</p>
                     </div>
 
                     <div class="space-y-3">
@@ -887,6 +890,36 @@
             }
             login(targetEmail);
             document.getElementById('login-password').value = '';
+        }
+
+        function loginWithButton() {
+            const loginInput = normalize(document.getElementById('login-user').value);
+            const password = document.getElementById('login-password').value.trim();
+            const targetUser = users.find(u => normalize(u.email) === loginInput || normalize(u.name) === loginInput);
+
+            if (!loginInput) {
+                showToast('Ingresa un usuario para iniciar sesión');
+                return;
+            }
+
+            if (!password) {
+                showToast('Ingresa una contraseña para continuar');
+                return;
+            }
+
+            if (!targetUser) {
+                showToast('Usuario no encontrado');
+                return;
+            }
+
+            login(targetUser.email);
+            document.getElementById('login-password').value = '';
+        }
+
+        function handleLoginKey(event) {
+            if (event.key === 'Enter') {
+                loginWithButton();
+            }
         }
 
         function populateSaleVendorSelector() {
