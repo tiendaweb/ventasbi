@@ -394,9 +394,6 @@
                         <button onclick="exportExcelGeneral()" class="glass-button-primary px-4 py-2 rounded-xl flex items-center gap-2 text-sm">
                             <i class="ph ph-file-xls"></i> Excel General
                         </button>
-                        <button onclick="exportExcelByUser()" class="glass-button-primary px-4 py-2 rounded-xl flex items-center gap-2 text-sm">
-                            <i class="ph ph-user-focus"></i> Excel por Usuario
-                        </button>
                     </div>
                 </div>
 
@@ -419,6 +416,26 @@
                         </h3>
                         <div class="space-y-3" id="product-reports">
                             <!-- Inyectado por JS -->
+                        </div>
+                    </div>
+
+                    <div class="glass-card p-6 rounded-2xl md:col-span-2">
+                        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4">
+                            <h3 class="text-lg font-bold text-slate-800 flex items-center gap-2"><i class="ph ph-table"></i> Ventas por Usuario</h3>
+                            <p id="admin-vendor-sales-title" class="text-sm text-slate-500">Selecciona un usuario para ver su detalle.</p>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm">
+                                <thead>
+                                    <tr class="text-slate-500 border-b border-white/30">
+                                        <th class="py-2 text-left">Fecha</th>
+                                        <th class="py-2 text-left">Transacción</th>
+                                        <th class="py-2 text-right">Items</th>
+                                        <th class="py-2 text-right">Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="admin-vendor-sales-table"></tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
@@ -485,7 +502,8 @@
             currentUser: null,
             inventory: [],
             sales: [],
-            cart: []
+            cart: [],
+            selectedVendorReportEmail: null
         };
 
         // --- 2. PERSISTENCIA (LocalStorage) ---
@@ -494,7 +512,7 @@
             const savedSales = localStorage.getItem('bi_sales');
             
             state.inventory = savedInv ? JSON.parse(savedInv) : [...defaultInventory];
-            state.sales = savedSales ? JSON.parse(savedSales) : [];
+            state.sales = savedSales ? JSON.parse(savedSales) : [...defaultSales];
         }
 
         function saveData() {
@@ -508,6 +526,12 @@
             const d = new Date(isoString);
             return d.toLocaleDateString('es-AR') + ' ' + d.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
         };
+
+        const defaultSales = [
+            { id: 'TRX-A1B2C3', date: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(), vendorEmail: 'jorge@jorge.com', vendorName: 'Jorge', items: [{ id: 'P001', name: 'Remera Básica Algodón', price: 15000, qty: 2 }, { id: 'P004', name: 'Gorra Deportiva', price: 8500, qty: 1 }], total: 38500 },
+            { id: 'TRX-D4E5F6', date: new Date(Date.now() - 1000 * 60 * 60 * 4).toISOString(), vendorEmail: 'maria@maria.com', vendorName: 'Maria', items: [{ id: 'P002', name: 'Pantalón Jean Clásico', price: 35000, qty: 1 }, { id: 'P006', name: 'Medias (Pack x3)', price: 5000, qty: 2 }], total: 45000 },
+            { id: 'TRX-G7H8I9', date: new Date(Date.now() - 1000 * 60 * 60 * 6).toISOString(), vendorEmail: 'pepe@pepe.com', vendorName: 'Pepe', items: [{ id: 'P003', name: 'Zapatillas Urbanas', price: 45000, qty: 1 }, { id: 'P004', name: 'Gorra Deportiva', price: 8500, qty: 2 }], total: 62000 }
+        ];
 
         function showToast(message) {
             const toast = document.getElementById('toast');
@@ -523,6 +547,7 @@
                 state.currentUser = user;
                 document.getElementById('current-user-name').innerText = user.name;
                 document.getElementById('app-header').classList.remove('hidden');
+                document.getElementById('view-login').classList.add('hidden');
                 
                 // Mostrar/ocultar columnas exclusivas de admin
                 const adminCols = document.querySelectorAll('.admin-only');
@@ -536,6 +561,7 @@
         function logout() {
             state.currentUser = null;
             document.getElementById('app-header').classList.add('hidden');
+            document.getElementById('view-login').classList.remove('hidden');
             switchTab('login');
         }
 
@@ -767,9 +793,8 @@
             const hrContainer = document.getElementById('hr-reports');
             const vendorStats = {};
             
-            // Solo considerar vendedores
             users.filter(u => u.role === 'vendor').forEach(v => {
-                vendorStats[v.email] = { name: v.name, totalVendido: 0, txCount: 0 };
+                vendorStats[v.email] = { name: v.name, email: v.email, totalVendido: 0, txCount: 0 };
             });
 
             state.sales.forEach(s => {
@@ -780,13 +805,11 @@
             });
 
             hrContainer.innerHTML = Object.values(vendorStats).map(v => {
-                const comision = v.totalVendido * 0.05; // 5% de comisión
+                const comision = v.totalVendido * 0.05;
                 return `
-                <div class="flex justify-between items-center bg-white/40 p-3 rounded-xl border border-white/40">
+                <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 bg-white/40 p-3 rounded-xl border border-white/40">
                     <div class="flex items-center gap-3">
-                        <div class="bg-indigo-100 text-indigo-700 w-10 h-10 rounded-full flex items-center justify-center font-bold">
-                            ${v.name.charAt(0)}
-                        </div>
+                        <div class="bg-indigo-100 text-indigo-700 w-10 h-10 rounded-full flex items-center justify-center font-bold">${v.name.charAt(0)}</div>
                         <div>
                             <p class="font-bold text-slate-800 text-sm">${v.name}</p>
                             <p class="text-xs text-slate-500">${v.txCount} ventas registradas</p>
@@ -795,6 +818,11 @@
                     <div class="text-right">
                         <p class="text-xs text-slate-500">Comisión (5%)</p>
                         <p class="font-bold text-emerald-600">${formatMoney(comision)}</p>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <button onclick="viewVendorSales('${v.email}')" class="glass-button px-3 py-1.5 rounded-lg text-xs"><i class="ph ph-eye"></i> Ver ventas</button>
+                        <button onclick="exportExcelByUser('${v.email}')" class="glass-button-primary px-3 py-1.5 rounded-lg text-xs"><i class="ph ph-file-xls"></i> Excel</button>
+                        <button onclick="loginAs('${v.email}')" class="glass-button px-3 py-1.5 rounded-lg text-xs"><i class="ph ph-sign-in"></i> Entrar</button>
                     </div>
                 </div>
             `}).join('');
@@ -824,6 +852,35 @@
                     </div>
                 `).join('');
             }
+
+            if (!state.selectedVendorReportEmail) {
+                const firstVendor = users.find(u => u.role === 'vendor');
+                state.selectedVendorReportEmail = firstVendor ? firstVendor.email : null;
+            }
+            renderAdminVendorSalesTable(state.selectedVendorReportEmail);
+        }
+
+        function viewVendorSales(vendorEmail) {
+            state.selectedVendorReportEmail = vendorEmail;
+            renderAdminVendorSalesTable(vendorEmail);
+        }
+
+        function renderAdminVendorSalesTable(vendorEmail) {
+            const vendor = users.find(u => u.email === vendorEmail);
+            const title = document.getElementById('admin-vendor-sales-title');
+            const table = document.getElementById('admin-vendor-sales-table');
+            if (!vendor) {
+                title.innerText = 'Selecciona un usuario para ver su detalle.';
+                table.innerHTML = '<tr><td colspan="4" class="py-3 text-center text-slate-500">Sin usuario seleccionado.</td></tr>';
+                return;
+            }
+            title.innerText = `Mostrando ventas de ${vendor.name}`;
+            const rows = state.sales.filter(s => s.vendorEmail === vendorEmail).slice(0, 20);
+            if (!rows.length) {
+                table.innerHTML = '<tr><td colspan="4" class="py-3 text-center text-slate-500">Este usuario no tiene ventas registradas.</td></tr>';
+                return;
+            }
+            table.innerHTML = rows.map(s => `<tr class="border-b border-white/20"><td class="py-2">${formatDate(s.date)}</td><td class="py-2">${s.id}</td><td class="py-2 text-right">${s.items.reduce((acc, i) => acc + i.qty, 0)}</td><td class="py-2 text-right font-semibold">${formatMoney(s.total)}</td></tr>`).join('');
         }
 
         // --- 6. EXPORTACIÓN DE DATOS (Para el analista BI) ---
@@ -880,15 +937,10 @@
         }
 
         function loginAs(targetEmail) {
-            const loginInput = normalize(document.getElementById('login-user').value);
             const targetUser = users.find(u => u.email === targetEmail);
             if (!targetUser) return;
-            const valid = loginInput === normalize(targetEmail) || loginInput === normalize(targetUser.name);
-            if (!valid) {
-                showToast('El usuario ingresado no coincide con el botón seleccionado');
-                return;
-            }
             login(targetEmail);
+            document.getElementById('login-user').value = '';
             document.getElementById('login-password').value = '';
         }
 
@@ -1102,12 +1154,10 @@
             showToast('Excel general descargado');
         }
 
-        function exportExcelByUser() {
+        function exportExcelByUser(selectedEmail) {
             if (!state.sales.length) return showToast('No hay datos para exportar');
-            const options = users.filter(u => u.role === 'vendor').map(u => `${u.name} (${u.email})`).join('\\n');
-            const selected = prompt(`Escribe el email del vendedor para exportar:\\n${options}`);
-            if (!selected) return;
-            const email = selected.trim().toLowerCase();
+            const email = (selectedEmail || '').trim().toLowerCase();
+            if (!email) return showToast('Selecciona un usuario para exportar');
             const filtered = state.sales.filter(s => s.vendorEmail === email);
             if (!filtered.length) return showToast('Ese usuario no tiene ventas registradas');
             const vendor = users.find(u => u.email === email);
